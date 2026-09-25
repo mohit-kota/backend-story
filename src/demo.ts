@@ -1,0 +1,205 @@
+import type {
+  AnalysisReport,
+  ContractNode,
+  InterpretedSql,
+  ObservedSqlEvidence,
+  SourceSpan,
+} from "./types";
+
+const span = (startLine: number, endLine = startLine): SourceSpan => ({
+  start: startLine * 100,
+  end: endLine * 100 + 80,
+  startLine,
+  endLine,
+});
+
+const observedDiscountSql: ObservedSqlEvidence = {
+  statement:
+    'SELECT "public"."Discount"."id", "public"."Discount"."code", "public"."Discount"."amount" FROM "public"."Discount" WHERE ("public"."Discount"."code" = $1 AND "public"."Discount"."deleted" = $2) LIMIT $3 OFFSET $4',
+  normalizedStatement:
+    'SELECT id, code, amount FROM Discount WHERE code = ? AND deleted = ? LIMIT ? OFFSET ?',
+  fingerprint: "sql:demo-discount-by-code",
+  parameterSummary: "$1=<redacted code>, $2=false, $3=1, $4=0",
+  source: "axiom",
+  sampleCount: 1842,
+  p50Ms: 4.8,
+  p95Ms: 18.6,
+  p99Ms: 41.2,
+  averageRows: 1,
+};
+
+const interpretedDiscountSql: InterpretedSql = {
+  statement:
+    "SELECT id, code, amount\nFROM Discount\nWHERE code = ? AND deleted = false\nLIMIT 1",
+  limitations: [],
+};
+
+const nodes: ContractNode[] = [
+  {
+    id: "demo:endpoint",
+    label: "GET /discount",
+    detail: "Get discount details by code",
+    kind: "endpoint",
+    filePath: "src/modules/discount/index.ts",
+    span: span(49, 118),
+    order: 0,
+  },
+  {
+    id: "demo:auth",
+    label: "Auth",
+    detail: "Authentication and session guard",
+    kind: "middleware",
+    filePath: "src/modules/discount/index.ts",
+    span: span(158),
+    order: 1,
+  },
+  {
+    id: "demo:request",
+    label: "GetDiscountByCodeQuery",
+    detail: "Query contract",
+    kind: "schema",
+    filePath: "src/modules/discount/model.ts",
+    span: span(16, 28),
+    order: 2,
+  },
+  {
+    id: "demo:service",
+    label: "DiscountService.getDiscountByCode",
+    detail: "Service method",
+    kind: "service",
+    filePath: "src/modules/discount/service.ts",
+    span: span(46, 117),
+    order: 3,
+  },
+  {
+    id: "demo:db",
+    label: "discount.findFirst",
+    detail: "Reads the Discount model via Prisma `findFirst`",
+    kind: "database",
+    filePath: "src/modules/discount/service.ts",
+    span: span(70, 99),
+    order: 4,
+    dataAccess: {
+      model: "discount",
+      operation: "findFirst",
+      access: "read",
+      fingerprint: "prisma:demo-discount-by-code",
+      shapeFingerprint: "discount:findfirst",
+      expression:
+        "prisma.discount.findFirst({select:{id:true,code:true,amount:true},where:{code,deleted:false}})",
+      interpretedSql: interpretedDiscountSql,
+      sqlEvidence: observedDiscountSql,
+    },
+  },
+  {
+    id: "demo:pricing-service",
+    label: "PricingService.buildQuote",
+    detail: "Service method",
+    kind: "service",
+    filePath: "src/modules/pricing/service.ts",
+    span: span(102, 138),
+    order: 5,
+  },
+  {
+    id: "demo:db:duplicate",
+    label: "discount.findFirst",
+    detail: "Reads the Discount model via Prisma `findFirst`",
+    kind: "database",
+    filePath: "src/modules/pricing/service.ts",
+    span: span(114, 121),
+    order: 6,
+    dataAccess: {
+      model: "discount",
+      operation: "findFirst",
+      access: "read",
+      fingerprint: "prisma:demo-discount-by-code",
+      shapeFingerprint: "discount:findfirst",
+      expression:
+        "prisma.discount.findFirst({select:{id:true,code:true,amount:true},where:{code,deleted:false}})",
+      interpretedSql: interpretedDiscountSql,
+      sqlEvidence: observedDiscountSql,
+    },
+  },
+  {
+    id: "demo:model",
+    label: "Discount model",
+    detail: "Prisma data model",
+    kind: "schema",
+    filePath: "prisma/schema.prisma",
+    span: span(2230, 2294),
+    order: 7,
+  },
+  {
+    id: "demo:response",
+    label: "DiscountDetailsResponse",
+    detail: "Response contract",
+    kind: "schema",
+    filePath: "src/modules/discount/model.ts",
+    span: span(45, 60),
+    order: 8,
+  },
+];
+
+export const DEMO_REPORT: AnalysisReport = {
+  root: "/example/backend",
+  analyzedAtUnixMs: Date.now(),
+  summary: {
+    totalFiles: 183,
+    parsedFiles: 183,
+    failedFiles: 0,
+    totalBytes: 2_406_000,
+    imports: 811,
+    functions: 1392,
+    classes: 84,
+    calls: 7924,
+    routes: 148,
+    prismaModels: 96,
+    prismaEnums: 31,
+    diagnostics: 0,
+  },
+  files: [],
+  contracts: [
+    {
+      id: "demo:contract",
+      method: "GET",
+      path: "/discount",
+      summary: "Get available discounts",
+      filePath: "src/modules/discount/index.ts",
+      span: span(49, 118),
+      nodes,
+      edges: [
+        { id: "e1", source: "demo:request", target: "demo:endpoint", kind: "usesSchema", label: "validates" },
+        { id: "e2", source: "demo:endpoint", target: "demo:auth", kind: "guards", label: "guards" },
+        { id: "e3", source: "demo:auth", target: "demo:service", kind: "invokes", label: "invokes" },
+        { id: "e4", source: "demo:service", target: "demo:db", kind: "reads", label: "reads" },
+        { id: "e5", source: "demo:db", target: "demo:model", kind: "usesSchema", label: "model" },
+        { id: "e6", source: "demo:endpoint", target: "demo:response", kind: "returns", label: "returns" },
+        { id: "e7", source: "demo:service", target: "demo:pricing-service", kind: "invokes", label: "invokes" },
+        { id: "e8", source: "demo:pricing-service", target: "demo:db:duplicate", kind: "reads", label: "reads" },
+        { id: "e9", source: "demo:db:duplicate", target: "demo:model", kind: "usesSchema", label: "model" },
+      ],
+    },
+    ...[
+      { path: "/discount/apply", method: "POST", summary: "Apply a discount" },
+      { path: "/discount/validate", method: "POST", summary: "Validate discount code" },
+      { path: "/orders", method: "POST", summary: "Create order" },
+      { path: "/orders/:id", method: "GET", summary: "Get order by ID" },
+      { path: "/orders/:id/status", method: "PATCH", summary: "Update order status" },
+      { path: "/products", method: "GET", summary: "List products" },
+      { path: "/products/:id", method: "GET", summary: "Get product by ID" },
+      { path: "/customers", method: "POST", summary: "Create customer" },
+    ].map(({ path, method, summary }, index) => ({
+      id: `demo:contract:${index}`,
+      method,
+      path,
+      summary,
+      filePath: "src/modules/example/index.ts",
+      span: span(20 + index * 10),
+      nodes,
+      edges: [
+        { id: `d${index}:1`, source: "demo:endpoint", target: "demo:auth", kind: "guards" as const, label: "guards" },
+        { id: `d${index}:2`, source: "demo:auth", target: "demo:service", kind: "invokes" as const, label: "invokes" },
+      ],
+    })),
+  ],
+};

@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose an evidence-backed product or analyzer improvement
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Engineering question
+      description: What should Backend Story help an engineer answer?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Required evidence
+      description: What source or runtime evidence would make the answer trustworthy?
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Minimal example
+      description: Add a small public code sample if useful.
+  - type: textarea
+    id: limitations
+    attributes:
+      label: Ambiguities and safety constraints
+      description: When could the proposed finding be wrong or unsafe?
